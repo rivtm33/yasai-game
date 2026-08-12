@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>やさいゲーム</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+    background: linear-gradient(170deg, #b8e0a0 0%, #7fc46a 45%, #4f9e46 100%);
+    color: #2c4322;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+  #wrap {
+    height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; padding: 8px;
+  }
+  header {
+    width: 100%; max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .title {
+    font-size: 20px; font-weight: 800; letter-spacing: 1px;
+    color: #fff; text-shadow: 0 2px 0 #3d7a35, 0 4px 8px rgba(0,0,0,.25);
+  }
+  .scores { display: flex; gap: 8px; }
+  .card {
+    background: rgba(255,255,255,.85);
+    border-radius: 12px; padding: 4px 12px;
+    box-shadow: 0 2px 0 rgba(0,0,0,.12);
+    text-align: center; min-width: 76px;
+  }
+  .card .lbl { font-size: 10px; opacity: .65; font-weight: 700; }
+  .card .val { font-size: 20px; font-weight: 800; line-height: 1.1; }
+
+  #stage {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 0 0 6px #8b5a2b;
+    background: linear-gradient(180deg, #fff9ec 0%, #ffeecb 100%);
+  }
+  canvas { display: block; }
+
+  #nextBox {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255,255,255,.8);
+    border-radius: 12px; padding: 4px 8px 2px;
+    text-align: center; pointer-events: none;
+  }
+  #nextBox .lbl { font-size: 9px; font-weight: 800; opacity: .6; }
+  #nextBox .emo { font-size: 26px; line-height: 1.1; }
+
+  #chart {
+    width: 100%; max-width: 420px;
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 2px; background: rgba(255,255,255,.55);
+    border-radius: 12px; padding: 6px 4px;
+  }
+  #chart span { font-size: 15px; }
+  #chart i { font-style: normal; opacity: .4; font-size: 10px; align-self: center; }
+
+  #over {
+    position: absolute; inset: 0;
+    background: rgba(30,50,25,.72);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    color: #fff; backdrop-filter: blur(3px);
+  }
+  #over.show { display: flex; }
+  #over h2 { margin: 0; font-size: 30px; text-shadow: 0 3px 6px rgba(0,0,0,.4); }
+  #over .fin { font-size: 15px; opacity: .9; }
+  button {
+    font-family: inherit; font-size: 17px; font-weight: 800;
+    padding: 12px 30px; border: none; border-radius: 999px;
+    background: #ffb703; color: #4a2c00; cursor: pointer;
+    box-shadow: 0 4px 0 #d18f00;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #d18f00; }
+  .hint { font-size: 11px; color: rgba(255,255,255,.9); text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <div class="title">🥬 やさいゲーム</div>
+    <div class="scores">
+      <div class="card"><div class="lbl">スコア</div><div class="val" id="score">0</div></div>
+      <div class="card"><div class="lbl">ハイスコア</div><div class="val" id="best">0</div></div>
+    </div>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="nextBox"><div class="lbl">つぎ</div><div class="emo" id="nextEmo">🫛</div></div>
+    <div id="over">
+      <h2>おしまい！</h2>
+      <div class="fin" id="finalTxt"></div>
+      <button id="retry">もういちど</button>
+    </div>
+  </div>
+
+  <div id="chart"></div>
+  <div class="hint">クリック / タップした場所に野菜を落とす</div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============ 野菜の進化テーブル ============ */
+const VEG = [
+  { name:'えんどうまめ', emo:'🫛', r: 15, color:'#9ccc52', score: 1  },
+  { name:'ミニトマト',   emo:'🍅', r: 20, color:'#ef5350', score: 3  },
+  { name:'にんじん',     emo:'🥕', r: 26, color:'#ff9f43', score: 6  },
+  { name:'たまねぎ',     emo:'🧅', r: 33, color:'#e0b96a', score: 10 },
+  { name:'ピーマン',     emo:'🫑', r: 41, color:'#61b358', score: 15 },
+  { name:'なす',         emo:'🍆', r: 49, color:'#8e6bb5', score: 21 },
+  { name:'じゃがいも',   emo:'🥔', r: 58, color:'#c9a066', score: 28 },
+  { name:'とうもろこし', emo:'🌽', r: 68, color:'#f5cf4a', score: 36 },
+  { name:'ブロッコリー', emo:'🥦', r: 79, color:'#5aa14a', score: 45 },
+  { name:'かぼちゃ',     emo:'🎃', r: 91, color:'#f0862d', score: 55 },
+  { name:'キャベツ',     emo:'🥬', r:104, color:'#a8d46f', score: 66 },
+];
+const MAX_DROP = 4;          // 落とせるのは 0..4（えんどう〜ピーマン）
+const LINE_Y   = 118;        // デッドライン
+const DROP_Y   = 62;         // 投下位置
+const COOLDOWN = 380;        // 連続投下の間隔(ms)
+
+/* ============ 画面サイズ ============ */
+const BASE_W = 380, BASE_H = 620;
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let scale = 1;
+
+function fit(){
+  const stage = document.getElementById('stage');
+  const availH = window.innerHeight - 150;
+  const availW = Math.min(window.innerWidth - 20, 420);
+  scale = Math.min(availW / BASE_W, availH / BASE_H, 1.1);
+  const dpr = window.devicePixelRatio || 1;
+  cv.width  = Math.round(BASE_W * scale * dpr);
+  cv.height = Math.round(BASE_H * scale * dpr);
+  cv.style.width  = (BASE_W * scale) + 'px';
+  cv.style.height = (BASE_H * scale) + 'px';
+  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+  stage.style.width  = (BASE_W * scale) + 'px';
+  stage.style.height = (BASE_H * scale) + 'px';
+}
+
+/* ============ 状態 ============ */
+let balls = [], particles = [];
+let score = 0, best = +(localStorage.getItem('yasai_best') || 0);
+let curType = 0, nextType = 0;
+let aimX = BASE_W / 2;
+let lastDrop = -9999, dangerT = 0, gameOver = false;
+let idSeq = 1;
+
+const $score = document.getElementById('score');
+const $best  = document.getElementById('best');
+const $next  = document.getElementById('nextEmo');
+const $over  = document.getElementById('over');
+const $final = document.getElementById('finalTxt');
+
+function randType(){ return Math.floor(Math.random() * (MAX_DROP + 1)); }
+
+function reset(){
+  balls = []; particles = [];
+  score = 0; dangerT = 0; gameOver = false;
+  lastDrop = -9999;
+  curType = randType(); nextType = randType();
+  $over.classList.remove('show');
+  updateHud();
+}
+
+function updateHud(){
+  $score.textContent = score;
+  $best.textContent  = best;
+  $next.textContent  = VEG[nextType].emo;
+}
+
+/* ============ 物理（Position Based Dynamics） ============ */
+const G = 2100;      // 重力 px/s^2
+const ITER = 7;      // 拘束の反復回数
+const SUB  = 2;      // サブステップ
+const WALL_FRIC = 0.86;
+const AIR = 0.999;
+
+function addBall(type, x, y, vx = 0, vy = 0){
+  const v = VEG[type];
+  balls.push({
+    id: idSeq++, type, x, y, px: x - vx/60, py: y - vy/60,
+    vx, vy, r: v.r, rot: Math.random() * 6.28, rv: (Math.random()-.5) * 2,
+    born: performance.now(), dead: false
+  });
+}
+
+function step(dt){
+  const h = dt / SUB;
+  for (let s = 0; s < SUB; s++){
+    // 1) 積分
+    for (const b of balls){
+      b.vy += G * h;
+      b.vx *= AIR; b.vy *= AIR;
+      b.px = b.x; b.py = b.y;
+      b.x += b.vx * h;
+      b.y += b.vy * h;
+      b.rot += b.rv * h;
+      b.rv *= 0.985;
+    }
+    // 2) 拘束の解決
+    for (let k = 0; k < ITER; k++){
+      solvePairs(k === 0);
+      solveWalls();
+    }
+    // 3) 位置から速度を復元
+    for (const b of balls){
+      b.vx = (b.x - b.px) / h;
+      b.vy = (b.y - b.py) / h;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > 2600){ const f = 2600 / sp; b.vx *= f; b.vy *= f; }
+    }
+  }
+}
+
+let mergeQueue = [];
+
+function solvePairs(checkMerge){
+  const n = balls.length;
+  for (let i = 0; i < n; i++){
+    const a = balls[i];
+    if (a.dead) continue;
+    for (let j = i + 1; j < n; j++){
+      const b = balls[j];
+      if (b.dead) continue;
+      let dx = b.x - a.x, dy = b.y - a.y;
+      const minD = a.r + b.r;
+      if (Math.abs(dx) > minD || Math.abs(dy) > minD) continue;
+      let d2 = dx*dx + dy*dy;
+      if (d2 >= minD*minD || d2 === 0) continue;
+      const d = Math.sqrt(d2);
+
+      // 合体判定
+      if (checkMerge && a.type === b.type && a.type < VEG.length - 1){
+        a.dead = true; b.dead = true;
+        mergeQueue.push({ a, b });
+        break;   // a はもう消えたので次の球へ
+      }
+
+      const nx = dx / d, ny = dy / d;
+      const overlap = (minD - d) * 0.5;
+      const ma = a.r * a.r, mb = b.r * b.r;
+      const tot = ma + mb;
+      const wa = mb / tot, wb = ma / tot;   // 重い方が動きにくい
+      a.x -= nx * overlap * 2 * wa;
+      a.y -= ny * overlap * 2 * wa;
+      b.x += nx * overlap * 2 * wb;
+      b.y += ny * overlap * 2 * wb;
+
+      // 転がり回転（見た目用）
+      const tang = (-ny) * ((b.x-b.px) - (a.x-a.px)) + (nx) * ((b.y-b.py) - (a.y-a.py));
+      a.rv -= tang / a.r * 0.4;
+      b.rv += tang / b.r * 0.4;
+    }
+  }
+}
+
+function solveWalls(){
+  for (const b of balls){
+    if (b.dead) continue;
+    if (b.x - b.r < 0){
+      b.x = b.r;
+      b.py += (b.y - b.py) * (1 - WALL_FRIC);
+    } else if (b.x + b.r > BASE_W){
+      b.x = BASE_W - b.r;
+      b.py += (b.y - b.py) * (1 - WALL_FRIC);
+    }
+    if (b.y + b.r > BASE_H){
+      b.y = BASE_H - b.r;
+      const slide = (b.x - b.px);
+      b.px += slide * (1 - WALL_FRIC);
+      b.rv += slide / b.r * 6;
+    }
+  }
+}
+
+function doMerges(){
+  if (!mergeQueue.length) return;
+  for (const m of mergeQueue){
+    const { a, b } = m;
+    const nt = a.type + 1;
+    const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+    score += VEG[nt].score;
+    addBall(nt, x, y, (a.vx + b.vx) / 2 * 0.4, (a.vy + b.vy) / 2 * 0.4 - 40);
+    burst(x, y, VEG[nt].color, VEG[nt].r);
+    if (nt === VEG.length - 1) burst(x, y, '#fff', VEG[nt].r * 1.4);
+  }
+  mergeQueue = [];
+  balls = balls.filter(b => !b.dead);
+  if (score > best){ best = score; localStorage.setItem('yasai_best', best); }
+  updateHud();
+}
+
+/* ============ エフェクト ============ */
+function burst(x, y, color, r){
+  const n = 14;
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * Math.PI * 2 + Math.random() * .5;
+    const sp = 60 + Math.random() * 160;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 40,
+                     life: 1, color, size: 2 + Math.random() * (r * .12) });
+  }
+}
+function stepParticles(dt){
+  for (const p of particles){
+    p.vy += 900 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.life -= dt * 1.8;
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+
+/* ============ 入力 ============ */
+function clampAim(x, type){
+  const r = VEG[type].r;
+  return Math.max(r + 1, Math.min(BASE_W - r - 1, x));
+}
+function toLocal(e){
+  const rect = cv.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+  return (cx - rect.left) / scale;
+}
+function drop(){
+  if (gameOver) return;
+  const now = performance.now();
+  if (now - lastDrop < COOLDOWN) return;
+  lastDrop = now;
+  addBall(curType, clampAim(aimX, curType), DROP_Y, 0, 60);
+  curType = nextType;
+  nextType = randType();
+  updateHud();
+}
+
+cv.addEventListener('mousemove', e => { aimX = toLocal(e); });
+cv.addEventListener('mousedown', e => { aimX = toLocal(e); });
+cv.addEventListener('click',     e => { aimX = toLocal(e); drop(); });
+cv.addEventListener('touchstart', e => { aimX = toLocal(e); e.preventDefault(); }, { passive:false });
+cv.addEventListener('touchmove',  e => { aimX = toLocal(e); e.preventDefault(); }, { passive:false });
+cv.addEventListener('touchend',   e => { drop(); e.preventDefault(); }, { passive:false });
+document.getElementById('retry').addEventListener('click', reset);
+window.addEventListener('resize', fit);
+
+/* ============ ゲームオーバー判定 ============ */
+function checkOver(dt){
+  if (gameOver) return;
+  const now = performance.now();
+  let over = false;
+  for (const b of balls){
+    if (now - b.born < 1200) continue;          // 落とした直後は猶予
+    if (Math.hypot(b.vx, b.vy) > 90) continue;  // 動いている間は待つ
+    if (b.y - b.r < LINE_Y){ over = true; break; }
+  }
+  dangerT = over ? dangerT + dt : 0;
+  if (dangerT > 1.1){
+    gameOver = true;
+    $final.textContent = `スコア ${score}　/　ハイスコア ${best}`;
+    $over.classList.add('show');
+  }
+}
+
+/* ============ 描画 ============ */
+function drawVeg(b){
+  const v = VEG[b.type];
+  ctx.save();
+  ctx.translate(b.x, b.y);
+
+  // 影
+  ctx.beginPath();
+  ctx.arc(0, 3, b.r, 0, 6.2832);
+  ctx.fillStyle = 'rgba(120,90,50,.18)';
+  ctx.fill();
+
+  // 本体
+  const g = ctx.createRadialGradient(-b.r*.35, -b.r*.4, b.r*.15, 0, 0, b.r);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(.45, v.color);
+  g.addColorStop(1, shade(v.color, -28));
+  ctx.beginPath();
+  ctx.arc(0, 0, b.r, 0, 6.2832);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, b.r * .06);
+  ctx.strokeStyle = 'rgba(255,255,255,.75)';
+  ctx.stroke();
+
+  // 絵文字
+  ctx.rotate(b.rot);
+  ctx.font = `${(b.r * 1.45).toFixed(1)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(v.emo, 0, b.r * .04);
+  ctx.restore();
+}
+
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  const cl = c => Math.max(0, Math.min(255, c + amt));
+  return `rgb(${cl(n>>16 & 255)},${cl(n>>8 & 255)},${cl(n & 255)})`;
+}
+
+function render(){
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  // 背景の土
+  const bg = ctx.createLinearGradient(0, 0, 0, BASE_H);
+  bg.addColorStop(0, '#fffaf0');
+  bg.addColorStop(1, '#ffe9c4');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+  // デッドライン
+  const warn = dangerT > 0.15;
+  ctx.save();
+  ctx.setLineDash([9, 7]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = warn ? `rgba(230,60,60,${.5 + Math.sin(performance.now()/90)*.4})` : 'rgba(200,120,60,.45)';
+  ctx.beginPath();
+  ctx.moveTo(0, LINE_Y); ctx.lineTo(BASE_W, LINE_Y);
+  ctx.stroke();
+  ctx.restore();
+
+  // 落下ガイド
+  if (!gameOver){
+    const ax = clampAim(aimX, curType);
+    ctx.save();
+    ctx.setLineDash([4, 8]);
+    ctx.strokeStyle = 'rgba(90,120,70,.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ax, DROP_Y); ctx.lineTo(ax, BASE_H);
+    ctx.stroke();
+    ctx.restore();
+
+    // 待機中の野菜
+    const ready = performance.now() - lastDrop >= COOLDOWN;
+    ctx.globalAlpha = ready ? 1 : 0.35;
+    drawVeg({ x: ax, y: DROP_Y, r: VEG[curType].r, type: curType, rot: 0 });
+    ctx.globalAlpha = 1;
+  }
+
+  for (const b of balls) drawVeg(b);
+
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, 6.2832);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ============ ループ ============ */
+let prev = performance.now();
+function loop(now){
+  let dt = (now - prev) / 1000;
+  prev = now;
+  if (dt > 0.05) dt = 0.05;
+
+  if (!gameOver){
+    step(dt);
+    doMerges();
+    checkOver(dt);
+  }
+  stepParticles(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ============ 進化チャート ============ */
+(function buildChart(){
+  const el = document.getElementById('chart');
+  VEG.forEach((v, i) => {
+    const s = document.createElement('span');
+    s.textContent = v.emo;
+    s.title = v.name;
+    s.style.fontSize = (12 + i * 1.4) + 'px';
+    el.appendChild(s);
+    if (i < VEG.length - 1){
+      const arrow = document.createElement('i');
+      arrow.textContent = '▸';
+      el.appendChild(arrow);
+    }
+  });
+})();
+
+fit();
+reset();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
