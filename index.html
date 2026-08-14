@@ -24,7 +24,6 @@
           box-shadow: 0 2px 0 rgba(0,0,0,.12); text-align: center; min-width: 72px; }
   .card .lbl { font-size: 9px; opacity: .6; font-weight: 800; }
   .card .val { font-size: 18px; font-weight: 800; line-height: 1.15; }
-  .card .val::before { content: '¥'; font-size: 11px; opacity: .55; }
 
   #stage { position: relative; border-radius: 18px; overflow: hidden;
            box-shadow: 0 10px 30px rgba(0,0,0,.3), inset 0 0 0 6px #8b5a2b; background: #fff9ec; }
@@ -54,6 +53,7 @@
           box-shadow: 0 3px 0 rgba(0,0,0,.18); line-height: 1.25; }
   .tbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.18); }
   .tbtn.on { background: #ffb703; color: #4a2c00; box-shadow: 0 3px 0 #cf8f00; }
+  a.tbtn { text-decoration: none; text-align: center; display: block; }
   .tbtn b { display: block; font-size: 14px; line-height: 1.1; }
 
   #chart { width: 100%; max-width: 430px; display: flex; flex-wrap: wrap;
@@ -83,8 +83,8 @@
   <header>
     <div class="title">🍇 シャインマスカットゲーム<small>もやし から 高級ぶどうを目指せ</small></div>
     <div class="scores">
-      <div class="card"><div class="lbl">売上</div><div class="val" id="score">0</div></div>
-      <div class="card"><div class="lbl">最高記録</div><div class="val" id="best">0</div></div>
+      <div class="card"><div class="lbl">スコア</div><div class="val" id="score">0</div></div>
+      <div class="card"><div class="lbl">ハイスコア</div><div class="val" id="best">0</div></div>
     </div>
   </header>
 
@@ -113,6 +113,7 @@
     <button class="tbtn" id="btnAuto"><b>⏩</b>オート</button>
     <button class="tbtn on" id="btnSfx"><b>🔔</b>効果音</button>
     <button class="tbtn on" id="btnBgm"><b>🎵</b>BGM</button>
+    <a class="tbtn" id="btnRank" href="ranking.html"><b>🏆</b>ランキング</a>
   </div>
 
   <div id="chart"></div>
@@ -130,22 +131,22 @@ const SPRITES = {"0":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAY
    野菜テーブル（安い → 高級の8段階）
    ========================================================== */
 const VEG = [
-  { name:'もやし',            r: 16, color:'#e5e6c8', price:   30 },
-  { name:'きゅうり',          r: 24, color:'#8ab84a', price:   70 },
-  { name:'なす',              r: 34, color:'#8a5f8e', price:  120 },
-  { name:'トマト',            r: 46, color:'#e34b33', price:  200 },
-  { name:'ブロッコリー',      r: 60, color:'#5f9648', price:  350 },
-  { name:'パプリカ',          r: 76, color:'#d33a2c', price:  600 },
-  { name:'まつたけ',          r: 94, color:'#a68a68', price: 3000 },
-  { name:'シャインマスカット',r:114, color:'#c3d76a', price: 8000 },
+  { name:'もやし',            r: 16, color:'#e5e6c8', pt:  1 },
+  { name:'きゅうり',          r: 24, color:'#8ab84a', pt:  3 },
+  { name:'なす',              r: 34, color:'#8a5f8e', pt:  6 },
+  { name:'トマト',            r: 46, color:'#e34b33', pt: 10 },
+  { name:'ブロッコリー',      r: 60, color:'#5f9648', pt: 15 },
+  { name:'パプリカ',          r: 76, color:'#d33a2c', pt: 21 },
+  { name:'まつたけ',          r: 94, color:'#a68a68', pt: 28 },
+  { name:'シャインマスカット',r:114, color:'#c3d76a', pt: 36 },
 ];
 const TOP = VEG.length - 1;
-const TOP_BONUS = 20000;        // マスカット同士が合わさると消えて特大ボーナス
+const TOP_BONUS = 100;          // マスカット同士が合わさると消えてボーナス
 
 const LEVELS = {
-  easy:   { label:'かんたん',  maxDrop:3, sz:0.80, lineY: 98, danger:2.2, cd:330 },
-  normal: { label:'ふつう',    maxDrop:2, sz:1.00, lineY:122, danger:1.2, cd:400 },
-  hard:   { label:'むずかしい',maxDrop:2, sz:1.15, lineY:150, danger:0.7, cd:430 },
+  easy:   { label:'かんたん',  maxDrop:3, sz:1.05, lineY:110, danger:2.0, cd:330 },
+  normal: { label:'ふつう',    maxDrop:2, sz:1.15, lineY:130, danger:1.2, cd:400 },
+  hard:   { label:'むずかしい',maxDrop:2, sz:1.30, lineY:155, danger:0.7, cd:430 },
 };
 let L = LEVELS.normal;
 let R = VEG.map(v => v.r);
@@ -395,12 +396,12 @@ function fit(){
    状態
    ========================================================== */
 let balls = [], particles = [], mergeQueue = [], popQueue = [];
-let score = 0, best = +(localStorage.getItem('muscat_best') || 0);
+let score = 0, best = +(localStorage.getItem('muscat_best_pt') || 0);
 let curType = 0, nextType = 0, aimX = BASE_W / 2;
 let lastDrop = -9999, lastShuffle = -9999, lastTilt = -9999;
 let dangerT = 0, gameOver = false, started = false;
 let autoOn = false, shuffleFx = 0, shakeT = 0, shakeAmp = 0, celebrate = 0;
-let idSeq = 1, topReached = false, popped = 0;
+let idSeq = 1, topReached = false, popped = 0, topMade = 0, levelKey = 'normal';
 
 const $score = document.getElementById('score');
 const $best  = document.getElementById('best');
@@ -411,16 +412,34 @@ const $auto  = document.getElementById('btnAuto');
 const nextCv = document.getElementById('nextCv'), nctx = nextCv.getContext('2d');
 
 const randType = () => Math.floor(Math.random() * (L.maxDrop + 1));
-const yen = n => n.toLocaleString('ja-JP');
+const num = n => n.toLocaleString('ja-JP');
 
 function applyLevel(key){
-  L = LEVELS[key] || LEVELS.normal;
+  levelKey = LEVELS[key] ? key : 'normal';
+  L = LEVELS[levelKey];
   R = VEG.map(v => Math.round(v.r * L.sz));
+}
+
+/* 1プレイの結果を記録（ランキングページが読む） */
+const RUNS_KEY = 'muscat_runs';
+function loadRuns(){
+  try { const a = JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function saveRun(){
+  const t = new Date();
+  const day = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  const runs = loadRuns();
+  const nth = runs.filter(r => r.day === day).length + 1;
+  runs.push({ day, nth, lv: levelKey, lvLabel: L.label,
+              made: topMade, popped, score, ts: t.getTime() });
+  try { localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(-400))); } catch (e) {}
+  return nth;
 }
 
 function reset(){
   balls = []; particles = []; mergeQueue = []; popQueue = [];
-  score = 0; dangerT = 0; gameOver = false; topReached = false; popped = 0;
+  score = 0; dangerT = 0; gameOver = false; topReached = false; popped = 0; topMade = 0;
   lastDrop = -9999; celebrate = 0; shakeAmp = 0; shakeT = 0;
   setAuto(false);
   curType = randType(); nextType = randType();
@@ -429,8 +448,8 @@ function reset(){
 }
 
 function updateHud(){
-  $score.textContent = yen(score);
-  $best.textContent  = yen(best);
+  $score.textContent = num(score);
+  $best.textContent  = num(best);
   drawNextPreview();
 }
 
@@ -531,12 +550,12 @@ function doMerges(){
       const nt = a.type + 1, nr = R[nt];
       const x = Math.max(nr, Math.min(BASE_W - nr, (a.x + b.x) / 2));
       const y = Math.min((a.y + b.y) / 2, BASE_H - nr);
-      score += VEG[nt].price;
+      score += VEG[nt].pt;
       const nb = addBall(nt, x, y, (a.vx + b.vx) / 2 * 0.4, (a.vy + b.vy) / 2 * 0.4 - 40);
       nb.pop = 0.55;
       burst(x, y, VEG[nt].color, nr);
       if (nt === TOP){
-        topReached = true;
+        topReached = true; topMade++;
         celebrate = 2.6;
         shake(9);
         burst(x, y, '#ffffff', nr * 1.5);
@@ -560,7 +579,7 @@ function doMerges(){
     popQueue = [];
   }
   balls = balls.filter(b => !b.dead);
-  if (score > best){ best = score; localStorage.setItem('muscat_best', best); }
+  if (score > best){ best = score; localStorage.setItem('muscat_best_pt', best); }
   updateHud();
 }
 
@@ -724,12 +743,16 @@ function checkOver(dt){
   dangerT = over ? dangerT + dt : 0;
   if (dangerT > L.danger){
     gameOver = true; setAuto(false);
-    let msg = 'まだシャインマスカットには届かず…';
-    if (popped > 0) msg = `シャインマスカットを ${popped} 回 収穫！🍇`;
-    else if (topReached) msg = 'シャインマスカット 到達！🍇';
+    const nth = saveRun();
+    const msg = topMade > 0
+      ? `シャインマスカット <b style="font-size:18px">${topMade}</b> 個`
+      : 'シャインマスカットは作れず…';
     $final.innerHTML =
-      `<p>本日の売上 <b style="font-size:20px">¥${yen(score)}</b><br>` +
-      `最高記録 ¥${yen(best)}<br>${msg}</p>`;
+      `<p>本日 ${nth} 回目（${L.label}）<br>` +
+      `スコア <b style="font-size:22px">${num(score)}</b>　ハイスコア ${num(best)}<br>` +
+      `${msg}${popped > 0 ? `（うち ${popped} 組が消滅）` : ''}</p>` +
+      `<p><a href="ranking.html" style="color:#ffd66b">🏆 ランキングを見る</a></p>`;
+    $over.classList.remove('hide');
     Audio_.over();
     updateHud();
   }
@@ -890,7 +913,7 @@ function buildChart(){
     const c = document.createElement('canvas');
     const s = 15 + i * 3;
     c.width = c.height = s;
-    c.title = `${v.name}　¥${yen(v.price)}`;
+    c.title = `${v.name}　${v.pt}点`;
     const g = c.getContext('2d');
     g.save(); g.beginPath(); g.arc(s/2, s/2, s/2, 0, 6.2832); g.clip();
     if (imgOk(i)) g.drawImage(IMGS[i], 0, 0, s, s);

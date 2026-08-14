@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ランキング — シャインマスカットゲーム</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+    background: linear-gradient(170deg, #d8ecb4 0%, #8ec96f 42%, #3e8f57 100%);
+    background-attachment: fixed; color: #2c4322;
+  }
+  #wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 40px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  h1 { font-size: 19px; margin: 0; color: #fff; text-shadow: 0 2px 0 #35703f, 0 4px 8px rgba(0,0,0,.25); }
+  h1 small { display: block; font-size: 10px; opacity: .85; font-weight: 600; }
+  .back {
+    font-size: 12px; font-weight: 800; text-decoration: none;
+    background: #ffb703; color: #4a2c00; padding: 9px 14px;
+    border-radius: 999px; box-shadow: 0 3px 0 #cf8f00; white-space: nowrap;
+  }
+  .back:active { transform: translateY(2px); box-shadow: 0 1px 0 #cf8f00; }
+
+  section { background: rgba(255,255,255,.92); border-radius: 16px;
+            padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+  h2 { font-size: 14px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; }
+  h2 span { font-size: 10px; font-weight: 700; opacity: .55; }
+
+  .sum { display: flex; gap: 8px; margin: 8px 0 12px; }
+  .sumCard { flex: 1; background: #f4f8ec; border-radius: 12px; padding: 8px 4px; text-align: center; }
+  .sumCard .n { font-size: 24px; font-weight: 800; line-height: 1.1; }
+  .sumCard .t { font-size: 10px; font-weight: 700; opacity: .6; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 7px 4px; text-align: right; border-bottom: 1px solid rgba(0,0,0,.08); }
+  th { font-size: 10px; opacity: .6; font-weight: 800; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: none; }
+  .nth { font-weight: 800; }
+  .grapes { font-size: 13px; letter-spacing: -2px; white-space: nowrap; }
+  .zero { opacity: .3; }
+  .lv { display: inline-block; font-size: 10px; font-weight: 800;
+        padding: 2px 7px; border-radius: 999px; background: #e4eed6; }
+  .lv.easy { background: #ffe9a8; } .lv.normal { background: #d4ecc0; } .lv.hard { background: #ffcfc4; }
+  .rank1 td { background: #fff8dc; } .rank2 td { background: #f4f4f4; } .rank3 td { background: #fbeee0; }
+  .medal { font-size: 14px; }
+  .empty { text-align: center; padding: 22px 8px; font-size: 13px; opacity: .55; line-height: 1.8; }
+  .day { font-size: 11px; font-weight: 800; opacity: .5; margin: 14px 0 4px; }
+  .tools { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
+  .danger { font-family: inherit; font-size: 11px; font-weight: 800; padding: 9px 16px;
+            border: none; border-radius: 999px; background: rgba(255,255,255,.75);
+            color: #8a3b2c; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>🏆 ランキング<small>シャインマスカットゲーム</small></h1>
+    <a class="back" href="index.html">▶ あそぶ</a>
+  </header>
+
+  <section>
+    <h2>きょうの記録 <span id="todayDate"></span></h2>
+    <div class="sum">
+      <div class="sumCard"><div class="n" id="sumPlays">0</div><div class="t">プレイ回数</div></div>
+      <div class="sumCard"><div class="n" id="sumMuscat">0</div><div class="t">マスカット合計</div></div>
+      <div class="sumCard"><div class="n" id="sumBest">0</div><div class="t">最高スコア</div></div>
+    </div>
+    <div id="todayBody"></div>
+  </section>
+
+  <section>
+    <h2>歴代ベスト10 <span>マスカットの数 → スコアの順</span></h2>
+    <div id="allBody"></div>
+  </section>
+
+  <section>
+    <h2>日ごとの合計</h2>
+    <div id="dayBody"></div>
+  </section>
+
+  <div class="tools">
+    <button class="danger" id="clear">記録をぜんぶ消す</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const RUNS_KEY = 'muscat_runs';
+const num = n => n.toLocaleString('ja-JP');
+
+function loadRuns(){
+  try { const a = JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function todayStr(){
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+const lvClass = lv => (lv === 'easy' || lv === 'normal' || lv === 'hard') ? lv : '';
+const lvName  = r => r.lvLabel || ({easy:'かんたん', normal:'ふつう', hard:'むずかしい'}[r.lv] || '—');
+const grapes  = n => n > 0
+  ? `<span class="grapes">${'🍇'.repeat(Math.min(n, 10))}${n > 10 ? ` +${n-10}` : ''}</span>`
+  : '<span class="zero">—</span>';
+const hhmm = ts => { const d = new Date(ts); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+
+function tableHTML(rows, opts){
+  const medals = ['🥇','🥈','🥉'];
+  let h = '<table><thead><tr>' +
+          `<th>${opts.firstCol}</th><th>マスカット</th><th>スコア</th><th>レベル</th>` +
+          '</tr></thead><tbody>';
+  rows.forEach((r, i) => {
+    const cls = opts.medal && i < 3 ? ` class="rank${i+1}"` : '';
+    const head = opts.medal
+      ? `<span class="medal">${medals[i] || ''}</span> ${r.day.slice(5)} ${r.nth}回目`
+      : `<span class="nth">${r.nth}</span> 回目 <span style="opacity:.45;font-size:11px">${hhmm(r.ts)}</span>`;
+    h += `<tr${cls}><td>${head}</td><td>${grapes(r.made || 0)}</td>` +
+         `<td><b>${num(r.score || 0)}</b></td>` +
+         `<td><span class="lv ${lvClass(r.lv)}">${lvName(r)}</span></td></tr>`;
+  });
+  return h + '</tbody></table>';
+}
+
+function render(){
+  const runs = loadRuns();
+  const today = todayStr();
+  document.getElementById('todayDate').textContent = today;
+
+  // --- きょう ---
+  const mine = runs.filter(r => r.day === today).sort((a, b) => a.nth - b.nth);
+  document.getElementById('sumPlays').textContent  = mine.length;
+  document.getElementById('sumMuscat').textContent = mine.reduce((s, r) => s + (r.made || 0), 0);
+  document.getElementById('sumBest').textContent   = num(mine.reduce((s, r) => Math.max(s, r.score || 0), 0));
+  document.getElementById('todayBody').innerHTML = mine.length
+    ? tableHTML(mine, { firstCol: '何回目', medal: false })
+    : '<div class="empty">まだ今日の記録はありません。<br>1ゲーム遊ぶとここに残ります。</div>';
+
+  // --- 歴代ベスト ---
+  const best = runs.slice().sort((a, b) =>
+    (b.made || 0) - (a.made || 0) || (b.score || 0) - (a.score || 0) || a.ts - b.ts).slice(0, 10);
+  document.getElementById('allBody').innerHTML = best.length
+    ? tableHTML(best, { firstCol: '日付・何回目', medal: true })
+    : '<div class="empty">記録がまだありません。</div>';
+
+  // --- 日ごと ---
+  const byDay = {};
+  for (const r of runs){
+    const d = byDay[r.day] || (byDay[r.day] = { plays: 0, made: 0, best: 0 });
+    d.plays++; d.made += (r.made || 0); d.best = Math.max(d.best, r.score || 0);
+  }
+  const days = Object.keys(byDay).sort().reverse().slice(0, 14);
+  document.getElementById('dayBody').innerHTML = days.length
+    ? '<table><thead><tr><th>日付</th><th>プレイ</th><th>マスカット</th><th>最高スコア</th></tr></thead><tbody>' +
+      days.map(d => `<tr><td>${d}</td><td>${byDay[d].plays}</td>` +
+                    `<td>${byDay[d].made || '<span class="zero">—</span>'}</td>` +
+                    `<td><b>${num(byDay[d].best)}</b></td></tr>`).join('') +
+      '</tbody></table>'
+    : '<div class="empty">記録がまだありません。</div>';
+}
+
+document.getElementById('clear').addEventListener('click', () => {
+  if (!confirm('保存されている記録をすべて消します。よろしいですか？')) return;
+  localStorage.removeItem(RUNS_KEY);
+  render();
+});
+
+render();
+})();
+</script>
+</body>
+</html>
