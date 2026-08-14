@@ -87,7 +87,7 @@
 <body>
 <div id="wrap">
   <header>
-    <div class="title">🍇 シャインマスカットゲーム<small>もやし から 高級ぶどうを目指せ</small></div>
+    <div class="title" id="hdTitle">🍇 シャインマスカットゲーム<small id="hdSub">もやし から 高級ぶどうを目指せ</small></div>
     <div class="scores">
       <div class="card"><div class="lbl">スコア</div><div class="val" id="score">0</div></div>
       <div class="card"><div class="lbl">ハイスコア</div><div class="val" id="best">0</div></div>
@@ -108,7 +108,7 @@
     </div>
 
     <div class="overlay hide" id="over">
-      <h2>閉店…</h2>
+      <h2 id="overTitle">お疲れさまでした！</h2>
       <div class="fin" id="finalTxt"></div>
       <button class="lvBtn" id="retry">もういちど</button>
     </div>
@@ -123,7 +123,7 @@
   </div>
 
   <div id="chartBox">
-    <div class="head">そだつ じゅんばん　→　🏆 シャインマスカット</div>
+    <div class="head" id="chartHead">そだつ じゅんばん</div>
     <div id="chart"></div>
   </div>
   <div class="hint">クリック / タップで投下　◀▶でカゴをゆさぶる　🔀は何度でも使える</div>
@@ -139,6 +139,22 @@ const SPRITES = {"0":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAY
 'use strict';
 
 /* ==========================================================
+   テーマ（家族版はここだけ差し替える）
+   ========================================================== */
+const THEME = {
+  doc:   'シャインマスカットゲーム',
+  head:  '🍇 シャインマスカットゲーム',
+  sub:   'もやし から 高級ぶどうを目指せ',
+  top:   'シャインマスカット',
+  unit:  '個',
+  emoji: '🍇',
+  over:  'お疲れさまでした！',
+  cheer: 'シャインマスカット！',
+  none:  'つぎは もっと 上を目指そう',
+  bye:   'また あそぼうね',
+};
+
+/* ==========================================================
    野菜テーブル（安い → 高級の8段階）
    ========================================================== */
 const VEG = [
@@ -152,7 +168,8 @@ const VEG = [
   { name:'シャインマスカット',r:114, color:'#c3d76a', pt: 36 },
 ];
 const TOP = VEG.length - 1;
-const TOP_BONUS = 100;          // マスカット同士が合わさると消えてボーナス
+VEG[TOP].name = THEME.top;
+const TOP_BONUS = 100;          // 最終段どうしが合わさると消えてボーナス
 
 const LEVELS = {
   easy:   { label:'かんたん',  maxDrop:3, sz:1.05, lineY:110, danger:2.0, cd:330 },
@@ -763,14 +780,16 @@ function checkOver(dt){
   if (dangerT > L.danger){
     gameOver = true; setAuto(false);
     const nth = saveRun();
-    const msg = topMade > 0
-      ? `シャインマスカット <b style="font-size:18px">${topMade}</b> 個`
-      : 'シャインマスカットは作れず…';
+    const total = topMade;   // 消えた分も作った時点で数えている
+    const msg = total > 0
+      ? `${THEME.emoji} ${THEME.top} が <b style="font-size:20px">${total}</b> ${THEME.unit} できました`
+      : THEME.none;
+    const cheer = score >= best && score > 0 ? '<br>自己ベスト更新！おめでとう 🎉' : '';
     $final.innerHTML =
-      `<p>本日 ${nth} 回目（${L.label}）<br>` +
-      `スコア <b style="font-size:22px">${num(score)}</b>　ハイスコア ${num(best)}<br>` +
-      `${msg}${popped > 0 ? `（うち ${popped} 組が消滅）` : ''}</p>` +
-      `<p><a href="ranking.html" style="color:#ffd66b">🏆 ランキングを見る</a></p>`;
+      `<p>きょう ${nth} 回目（${L.label}）</p>` +
+      `<p>スコア <b style="font-size:24px">${num(score)}</b>　じぶんの記録 ${num(best)}${cheer}</p>` +
+      `<p>${msg}<br>${THEME.bye}</p>` +
+      `<p><a href="ranking.html" style="color:#ffd66b">🏆 きろくを見る</a></p>`;
     $over.classList.remove('hide');
     Audio_.over();
     updateHud();
@@ -902,9 +921,9 @@ function render(dt){
     const y = 200 - (2.6 - celebrate) * 26;
     ctx.globalAlpha = Math.min(1, celebrate / 1.2);
     ctx.lineWidth = 7; ctx.strokeStyle = '#4a3a00';
-    ctx.strokeText('シャインマスカット！', BASE_W / 2, y);
+    ctx.strokeText(THEME.cheer, BASE_W / 2, y);
     ctx.fillStyle = '#fff36b';
-    ctx.fillText('シャインマスカット！', BASE_W / 2, y);
+    ctx.fillText(THEME.cheer, BASE_W / 2, y);
     ctx.restore();
   }
 
@@ -963,6 +982,22 @@ function buildChart(){
   });
 }
 
+function applyTheme(){
+  document.title = THEME.doc;
+  document.getElementById('hdTitle').firstChild.nodeValue = THEME.head;
+  document.getElementById('hdSub').textContent = THEME.sub;
+  document.getElementById('overTitle').textContent = THEME.over;
+  document.getElementById('chartHead').textContent = `そだつ じゅんばん　→　🏆 ${THEME.top}`;
+  // ランキングページが見出しに使う
+  try {
+    localStorage.setItem('muscat_doc_title', THEME.doc);
+    localStorage.setItem('muscat_top_label', THEME.top);
+    localStorage.setItem('muscat_top_unit', THEME.unit);
+    localStorage.setItem('muscat_top_emoji', THEME.emoji);
+  } catch (e) {}
+}
+
+applyTheme();
 applyLevel('normal');
 updateHud();
 buildChart();

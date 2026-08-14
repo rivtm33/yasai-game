@@ -57,7 +57,7 @@
 <body>
 <div id="wrap">
   <header>
-    <h1>🏆 ランキング<small>シャインマスカットゲーム</small></h1>
+    <h1 id="rankTitle">🏆 きろく<small id="rankSub">シャインマスカットゲーム</small></h1>
     <a class="back" href="index.html">▶ あそぶ</a>
   </header>
 
@@ -65,14 +65,14 @@
     <h2>きょうの記録 <span id="todayDate"></span></h2>
     <div class="sum">
       <div class="sumCard"><div class="n" id="sumPlays">0</div><div class="t">プレイ回数</div></div>
-      <div class="sumCard"><div class="n" id="sumMuscat">0</div><div class="t">マスカット合計</div></div>
+      <div class="sumCard"><div class="n" id="sumMuscat">0</div><div class="t" id="sumMuscatLbl">合計</div></div>
       <div class="sumCard"><div class="n" id="sumBest">0</div><div class="t">最高スコア</div></div>
     </div>
     <div id="todayBody"></div>
   </section>
 
   <section>
-    <h2>歴代ベスト10 <span>マスカットの数 → スコアの順</span></h2>
+    <h2>ぜんぶの中のベスト10 <span id="bestNote"></span></h2>
     <div id="allBody"></div>
   </section>
 
@@ -92,6 +92,12 @@
 const RUNS_KEY = 'muscat_runs';
 const num = n => n.toLocaleString('ja-JP');
 
+/* ゲーム側が書き込んだ呼び名を使う（公開版はシャインマスカット、家族版は家族の名前） */
+const ls = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+const TOP_LABEL = ls('muscat_top_label', 'シャインマスカット');
+const TOP_UNIT  = ls('muscat_top_unit', '個');
+const TOP_EMOJI = ls('muscat_top_emoji', '🍇');
+
 function loadRuns(){
   try { const a = JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
   catch (e) { return []; }
@@ -103,14 +109,14 @@ function todayStr(){
 const lvClass = lv => (lv === 'easy' || lv === 'normal' || lv === 'hard') ? lv : '';
 const lvName  = r => r.lvLabel || ({easy:'かんたん', normal:'ふつう', hard:'むずかしい'}[r.lv] || '—');
 const grapes  = n => n > 0
-  ? `<span class="grapes">${'🍇'.repeat(Math.min(n, 10))}${n > 10 ? ` +${n-10}` : ''}</span>`
+  ? `<span class="grapes">${TOP_EMOJI.repeat(Math.min(n, 10))}${n > 10 ? ` +${n-10}` : ''}</span>`
   : '<span class="zero">—</span>';
 const hhmm = ts => { const d = new Date(ts); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
 
 function tableHTML(rows, opts){
   const medals = ['🥇','🥈','🥉'];
   let h = '<table><thead><tr>' +
-          `<th>${opts.firstCol}</th><th>マスカット</th><th>スコア</th><th>レベル</th>` +
+          `<th>${opts.firstCol}</th><th>${TOP_LABEL}</th><th>スコア</th><th>レベル</th>` +
           '</tr></thead><tbody>';
   rows.forEach((r, i) => {
     const cls = opts.medal && i < 3 ? ` class="rank${i+1}"` : '';
@@ -128,6 +134,10 @@ function render(){
   const runs = loadRuns();
   const today = todayStr();
   document.getElementById('todayDate').textContent = today;
+  document.getElementById('rankSub').textContent = ls('muscat_doc_title', 'シャインマスカットゲーム');
+  document.getElementById('sumMuscatLbl').textContent = `${TOP_LABEL} 合計`;
+  document.getElementById('bestNote').textContent = `${TOP_LABEL}の数 → スコアの順`;
+  document.title = `きろく — ${ls('muscat_doc_title', 'シャインマスカットゲーム')}`;
 
   // --- きょう ---
   const mine = runs.filter(r => r.day === today).sort((a, b) => a.nth - b.nth);
@@ -153,7 +163,7 @@ function render(){
   }
   const days = Object.keys(byDay).sort().reverse().slice(0, 14);
   document.getElementById('dayBody').innerHTML = days.length
-    ? '<table><thead><tr><th>日付</th><th>プレイ</th><th>マスカット</th><th>最高スコア</th></tr></thead><tbody>' +
+    ? `<table><thead><tr><th>日付</th><th>プレイ</th><th>${TOP_LABEL}</th><th>最高スコア</th></tr></thead><tbody>` +
       days.map(d => `<tr><td>${d}</td><td>${byDay[d].plays}</td>` +
                     `<td>${byDay[d].made || '<span class="zero">—</span>'}</td>` +
                     `<td><b>${num(byDay[d].best)}</b></td></tr>`).join('') +
