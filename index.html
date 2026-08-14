@@ -100,12 +100,6 @@
     <button class="tiltBtn" id="tiltL">◀<small>ゆさぶる</small></button>
     <button class="tiltBtn" id="tiltR">▶<small>ゆさぶる</small></button>
 
-    <div class="overlay" id="start">
-      <h2>レベルをえらぶ</h2>
-      <button class="lvBtn" data-lv="easy">かんたん<small>大きい野菜から落とせる・ぶどうまで届きやすい</small></button>
-      <button class="lvBtn mid" data-lv="normal">ふつう<small>ほどよく詰まる標準ルール</small></button>
-      <button class="lvBtn hard" data-lv="hard">むずかしい<small>野菜が大きく カゴも浅い・猶予もわずか</small></button>
-    </div>
 
     <div class="overlay hide" id="over">
       <h2 id="overTitle">お疲れさまでした！</h2>
@@ -172,11 +166,9 @@ VEG[TOP].name = THEME.top;
 const TOP_BONUS = 100;          // 最終段どうしが合わさると消えてボーナス
 
 const LEVELS = {
-  easy:   { label:'かんたん',  maxDrop:3, sz:1.05, lineY:110, danger:2.0, cd:330 },
-  normal: { label:'ふつう',    maxDrop:2, sz:1.15, lineY:130, danger:1.2, cd:400 },
-  hard:   { label:'むずかしい',maxDrop:2, sz:1.30, lineY:155, danger:0.7, cd:430 },
+  hard: { label:'むずかしい', maxDrop:2, sz:1.30, lineY:155, danger:0.7, cd:430 },
 };
-let L = LEVELS.normal;
+let L = LEVELS.hard;
 let R = VEG.map(v => v.r);
 
 const DROP_Y  = 66;
@@ -434,14 +426,13 @@ let balls = [], particles = [], mergeQueue = [], popQueue = [];
 let score = 0, best = +(localStorage.getItem('muscat_best_pt') || 0);
 let curType = 0, nextType = 0, aimX = BASE_W / 2;
 let lastDrop = -9999, lastShuffle = -9999, lastTilt = -9999;
-let dangerT = 0, gameOver = false, started = false;
+let dangerT = 0, gameOver = false, started = true;   // レベルは1つなので最初から開始
 let autoOn = false, shuffleFx = 0, shakeT = 0, shakeAmp = 0, celebrate = 0;
-let idSeq = 1, topReached = false, popped = 0, topMade = 0, levelKey = 'normal';
+let idSeq = 1, topReached = false, popped = 0, topMade = 0, levelKey = 'hard';
 
 const $score = document.getElementById('score');
 const $best  = document.getElementById('best');
 const $over  = document.getElementById('over');
-const $start = document.getElementById('start');
 const $final = document.getElementById('finalTxt');
 const $auto  = document.getElementById('btnAuto');
 const nextCv = document.getElementById('nextCv'), nctx = nextCv.getContext('2d');
@@ -450,7 +441,7 @@ const randType = () => Math.floor(Math.random() * (L.maxDrop + 1));
 const num = n => n.toLocaleString('ja-JP');
 
 function applyLevel(key){
-  levelKey = LEVELS[key] ? key : 'normal';
+  levelKey = LEVELS[key] ? key : 'hard';
   L = LEVELS[levelKey];
   R = VEG.map(v => Math.round(v.r * L.sz));
 }
@@ -748,19 +739,10 @@ $bgm.addEventListener('click', () => {
   $bgm.classList.toggle('on', on); Audio_.setBgm(on);
 });
 
-document.querySelectorAll('.lvBtn[data-lv]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    wake();
-    applyLevel(btn.dataset.lv);
-    started = true;
-    $start.classList.add('hide');
-    reset();
-    buildChart();
-    fit();
-  });
-});
 document.getElementById('retry').addEventListener('click', () => {
-  wake(); $over.classList.add('hide'); $start.classList.remove('hide'); started = false;
+  wake();
+  $over.classList.add('hide');
+  reset();
 });
 window.addEventListener('resize', fit);
 
@@ -786,7 +768,7 @@ function checkOver(dt){
       : THEME.none;
     const cheer = score >= best && score > 0 ? '<br>自己ベスト更新！おめでとう 🎉' : '';
     $final.innerHTML =
-      `<p>きょう ${nth} 回目（${L.label}）</p>` +
+      `<p>きょう ${nth} 回目</p>` +
       `<p>スコア <b style="font-size:24px">${num(score)}</b>　じぶんの記録 ${num(best)}${cheer}</p>` +
       `<p>${msg}<br>${THEME.bye}</p>` +
       `<p><a href="ranking.html" style="color:#ffd66b">🏆 きろくを見る</a></p>`;
@@ -998,7 +980,7 @@ function applyTheme(){
 }
 
 applyTheme();
-applyLevel('normal');
+applyLevel('hard');
 updateHud();
 buildChart();
 fit();
