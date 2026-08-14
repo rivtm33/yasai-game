@@ -146,6 +146,8 @@ const THEME = {
   cheer: 'シャインマスカット！',
   none:  'つぎは もっと 上を目指そう',
   bye:   'また あそぼうね',
+  // 各段の呼び名を差し替えたいときに配列を入れる（最終段を除く7つ）。null なら既定のまま
+  names: null,
 };
 
 /* ==========================================================
@@ -162,6 +164,7 @@ const VEG = [
   { name:'シャインマスカット',r:114, color:'#c3d76a', pt: 36 },
 ];
 const TOP = VEG.length - 1;
+if (THEME.names) THEME.names.forEach((n, i) => { if (VEG[i]) VEG[i].name = n; });
 VEG[TOP].name = THEME.top;
 const TOP_BONUS = 100;          // 最終段どうしが合わさると消えてボーナス
 
@@ -358,7 +361,7 @@ const Audio_ = (() => {
       boing(t + 0.5, 180, 90, 0.5, 0.16);
     },
 
-    /* マスカット同士が合わさって消えるとき */
+    /* 最終段どうしが合わさって消えるとき */
     muscatPop(){
       if (!ctx || !sfxOn) return;
       const t = ctx.currentTime;
@@ -540,7 +543,7 @@ function solvePairs(checkMerge){
 
       if (checkMerge && a.type === b.type){
         if (a.type < TOP){ a.dead = b.dead = true; mergeQueue.push({ a, b }); break; }
-        // マスカット同士は消滅して特大ボーナス
+        // 最終段どうしは消滅して特大ボーナス
         a.dead = b.dead = true; popQueue.push({ a, b }); break;
       }
 
