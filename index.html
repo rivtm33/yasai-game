@@ -128,6 +128,13 @@
     text-shadow: 0 2px 0 rgba(0,0,0,.25); animation: btnPulse 1.6s ease-in-out infinite;
   }
   .startBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #2c7420; }
+  /* つづきから が出ているときは、はじめる を控えめにする */
+  #startBtn.secondary {
+    background: linear-gradient(#fff2cf, #ffdf9a); color: #6b4a12;
+    box-shadow: 0 4px 0 #d3ad5c, 0 6px 12px rgba(0,0,0,.2);
+    font-size: 15px; padding: 10px 26px; text-shadow: none; animation: none;
+  }
+  #startBtn.secondary:active { box-shadow: 0 1px 0 #d3ad5c; }
   @keyframes btnPulse { 0%,100%{ transform: scale(1);} 50%{ transform: scale(1.05);} }
   .hint { font-size: 10px; color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 </style>
@@ -157,6 +164,7 @@
       <div id="titleFaces"></div>
       <div class="inner">
         <div class="logo" id="logoText"></div>
+        <button class="startBtn" id="resumeBtn" style="display:none">つづきから</button>
         <button class="startBtn" id="startBtn">はじめる</button>
       </div>
     </div>
@@ -508,6 +516,55 @@ function applyLevel(key){
   R = VEG.map(v => Math.round(v.r * L.sz));
 }
 
+/* ==========================================================
+   途中経過の自動保存
+   盤面は「種類と座標と速度の数字」だけなので、そのまま文字にして
+   端末の localStorage に置く。サーバーには何も送らない。
+   ========================================================== */
+const SAVE_KEY = 'muscat_save';
+const SAVE_V = 2;
+
+function saveState(){
+  if (!started || gameOver || !balls.length) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: SAVE_V, lv: levelKey, score, cur: curType, next: nextType,
+      made: topMade, pop: popped, ts: Date.now(),
+      b: balls.map(b => [b.type, +b.x.toFixed(1), +b.y.toFixed(1),
+                         +b.vx.toFixed(1), +b.vy.toFixed(1), +b.rot.toFixed(2)])
+    }));
+  } catch (e) {}
+}
+function loadState(){
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!d || d.v !== SAVE_V || !Array.isArray(d.b) || !d.b.length) return null;
+    if (!LEVELS[d.lv]) return null;
+    return d;
+  } catch (e) { return null; }
+}
+function clearState(){ try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+function restoreState(d){
+  applyLevel(d.lv);
+  balls = []; particles = []; mergeQueue = []; popQueue = [];
+  const now = performance.now();
+  for (const a of d.b){
+    const nb = addBall(a[0] | 0, a[1], a[2], a[3], a[4]);
+    nb.rot = a[5] || 0;
+    nb.born = now;                 // 復帰直後は行き詰まり判定に猶予を与える
+  }
+  score = d.score || 0;
+  curType = d.cur | 0; nextType = d.next | 0;
+  topMade = d.made || 0; popped = d.pop || 0;
+  dangerT = 0; gameOver = false; lastDrop = -9999;
+  celebrate = 0; shakeAmp = 0; shakeT = 0; shuffleFx = 0;
+  setAuto(false);
+  $over.classList.add('hide');
+  updateHud();
+  buildChart();
+}
+
 /* 1プレイの結果を記録（ランキングページが読む） */
 const RUNS_KEY = 'muscat_runs';
 function loadRuns(){
@@ -803,17 +860,35 @@ $bgm.addEventListener('click', () => {
 
 document.getElementById('retry').addEventListener('click', () => {
   wake();
+  clearState();
   $over.classList.add('hide');
   reset();
   started = true;
 });
 document.getElementById('startBtn').addEventListener('click', () => {
   wake();
+  clearState();
   document.getElementById('title').classList.add('hide');
   reset();
   started = true;
   fit();
 });
+document.getElementById('resumeBtn').addEventListener('click', () => {
+  wake();
+  const d = loadState();
+  document.getElementById('title').classList.add('hide');
+  if (d) { restoreState(d); } else { reset(); }
+  started = true;
+  fit();
+});
+
+/* 中断されても消えないように、こまめに保存する */
+setInterval(saveState, 1000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+window.addEventListener('pagehide', saveState);
+window.addEventListener('beforeunload', saveState);
+/* きろくのページへ移る直前にも保存 */
+document.getElementById('btnRank').addEventListener('click', saveState);
 window.addEventListener('resize', fit);
 
 /* ==========================================================
@@ -843,6 +918,7 @@ function checkOver(dt){
       `<p>${msg}<br>${THEME.bye}</p>` +
       `<p><a href="ranking.html" style="color:#ffd66b">🏆 きろくを見る</a></p>`;
     $over.classList.remove('hide');
+    clearState();          // 終わった盤面は復元しない
     Audio_.over();
     updateHud();
   }
@@ -1133,11 +1209,29 @@ function applyTheme(){
   } catch (e) {}
 }
 
+/* 保存された途中経過があれば「つづきから」を出す */
+function refreshTitleButtons(){
+  const d = loadState();
+  const $r = document.getElementById('resumeBtn');
+  const $s = document.getElementById('startBtn');
+  if (d){
+    $r.style.display = '';
+    $r.textContent = `つづきから（${num(d.score || 0)}点）`;
+    $s.textContent = 'さいしょから';
+    $s.classList.add('secondary');
+  } else {
+    $r.style.display = 'none';
+    $s.textContent = 'はじめる';
+    $s.classList.remove('secondary');
+  }
+}
+
 applyTheme();
 applyLevel('hard');
 updateHud();
 buildChart();
 buildTitle();
+refreshTitleButtons();
 fit();
 setTimeout(() => { buildChart(); buildTitle(); fit(); }, 600);   // 画像の読み込み後にもう一度
 requestAnimationFrame(loop);
