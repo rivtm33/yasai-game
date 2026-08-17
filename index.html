@@ -16,8 +16,9 @@
           align-items: center; justify-content: center; gap: 6px; padding: 6px; }
   header { width: 100%; max-width: 430px; display: flex;
            align-items: center; justify-content: space-between; gap: 8px; }
-  .title { font-size: 16px; font-weight: 800; line-height: 1.15;
-           color: #fff; text-shadow: 0 2px 0 #35703f, 0 4px 8px rgba(0,0,0,.25); }
+  .title { flex: 1; min-width: 0; font-size: 15px; font-weight: 800; line-height: 1.15;
+           color: #fff; text-shadow: 0 2px 0 #35703f, 0 4px 8px rgba(0,0,0,.25);
+           overflow: hidden; text-overflow: ellipsis; }
   .title small { display: block; font-size: 9px; opacity: .85; letter-spacing: 1px; }
   .scores { display: flex; gap: 6px; }
   .card { background: rgba(255,255,255,.9); border-radius: 12px; padding: 3px 10px;
@@ -35,16 +36,16 @@
   #nextBox canvas { border-radius: 50%; }
 
   /* ずる用のゆさぶりボタン */
-  .tiltBtn {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    width: 48px; height: 74px; border: none; border-radius: 12px;
-    background: rgba(255,255,255,.42); color: #3d5c2f; font-size: 20px; font-weight: 800;
-    cursor: pointer; backdrop-filter: blur(2px); box-shadow: 0 2px 6px rgba(0,0,0,.18);
+  /* ゆさぶり・シャッフル（盤面の外に置く） */
+  #shakeRow { display: flex; gap: 6px; width: 100%; max-width: 430px; }
+  .sbtn {
+    flex: 1; font-family: inherit; font-size: 13px; font-weight: 800;
+    padding: 11px 4px; border: none; border-radius: 12px;
+    background: #fff3d0; color: #6b4a12; cursor: pointer;
+    box-shadow: 0 3px 0 #d9b871; white-space: nowrap;
   }
-  .tiltBtn:active { background: rgba(255,183,3,.85); }
-  #tiltL { left: 8px; } #tiltR { right: 8px; }
-  .tiltBtn small { display: block; font-size: 8px; font-weight: 800; opacity: .75;
-                   white-space: nowrap; letter-spacing: -.5px; }
+  .sbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #d9b871; }
+  .sbtn.mid { background: #d9f0c0; color: #2f5220; box-shadow: 0 3px 0 #9dc57e; flex: 1.15; }
 
   #tools { display: flex; gap: 6px; width: 100%; max-width: 430px; }
   .tbtn { flex: 1; font-family: inherit; font-size: 11px; font-weight: 800;
@@ -61,12 +62,7 @@
               box-shadow: 0 3px 10px rgba(0,0,0,.14); }
   #chartBox .head { font-size: 10px; font-weight: 800; opacity: .55;
                     text-align: center; letter-spacing: 1px; margin-bottom: 4px; }
-  #chart { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; }
-  #chart canvas { border-radius: 50%; display: block;
-                  border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.22); }
-  #chart canvas.goal { border-color: #ffd54a;
-                       box-shadow: 0 0 0 3px rgba(255,213,74,.55), 0 3px 8px rgba(0,0,0,.28); }
-  #chart i { font-style: normal; opacity: .45; font-size: 13px; font-weight: 700; }
+  #chartBox canvas { display: block; margin: 0 auto; }
 
   .overlay { position: absolute; inset: 0; background: rgba(28,48,24,.8);
              display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -79,8 +75,60 @@
            background: #ffb703; color: #4a2c00; cursor: pointer; box-shadow: 0 4px 0 #d18f00; }
   .lvBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d18f00; }
   .lvBtn small { display: block; font-size: 10px; font-weight: 700; opacity: .75; }
-  .lvBtn.mid { background: #8ecf5a; box-shadow: 0 4px 0 #63a338; color: #23400f; }
-  .lvBtn.hard { background: #ef6f5a; box-shadow: 0 4px 0 #c04a37; color: #4a1408; }
+  /* ------- タイトル画面 ------- */
+  #title { background: #ffd23f; padding: 0; overflow: hidden; backdrop-filter: none; }
+  #title .burst {
+    position: absolute; left: 50%; top: 42%; width: 260%; height: 260%;
+    transform-origin: 50% 50%; margin: -130% 0 0 -130%;
+    background: repeating-conic-gradient(from 0deg, #ffe27a 0deg 11deg, #ffc42e 11deg 22deg);
+    animation: spinBurst 34s linear infinite;
+  }
+  @keyframes spinBurst { to { transform: rotate(360deg); } }
+  #title .glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 40%,
+      rgba(255,255,255,.92) 0%, rgba(255,255,255,.45) 30%,
+      rgba(255,214,110,.15) 55%, rgba(233,130,20,.42) 100%);
+  }
+  #title .inner {
+    position: relative; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6%;
+  }
+  .logo {
+    max-width: 88%; font-size: clamp(20px, 8vw, 42px); font-weight: 900; line-height: 1.08;
+    color: #fff; letter-spacing: 1px; transform: rotate(-4deg);
+    animation: logoPop 2.6s ease-in-out infinite;
+    text-shadow:
+      -4px -4px 0 #e8620f, 0 -4px 0 #e8620f, 4px -4px 0 #e8620f,
+      -4px  0   0 #e8620f, 4px  0   0 #e8620f,
+      -4px  4px 0 #e8620f, 0  4px 0 #e8620f, 4px  4px 0 #e8620f,
+       0    9px 0 rgba(150,62,0,.55), 0 14px 18px rgba(0,0,0,.28);
+  }
+  .logo span { display: block; font-size: .52em; letter-spacing: 6px; margin-top: .12em; }
+  @keyframes logoPop {
+    0%,100% { transform: rotate(-4deg) scale(1); }
+    50%     { transform: rotate(-2deg) scale(1.05); }
+  }
+  #titleFaces { position: absolute; inset: 0; pointer-events: none; }
+  #titleFaces canvas {
+    position: absolute; border-radius: 50%; border: 3px solid #fff;
+    box-shadow: 0 5px 12px rgba(0,0,0,.28); animation: bob 3.2s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0)     rotate(-6deg); }
+    50%     { transform: translateY(-11px) rotate(6deg); }
+  }
+  .spark { position: absolute; font-size: 18px; animation: twinkle 2.2s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.25;transform:scale(.7);} 50%{opacity:1;transform:scale(1.15);} }
+  .startBtn {
+    position: relative; font-family: inherit; font-size: 20px; font-weight: 900;
+    padding: 14px 44px; border: none; border-radius: 999px; cursor: pointer;
+    background: linear-gradient(#63c34a, #3f9c2f); color: #fff;
+    box-shadow: 0 5px 0 #2c7420, 0 8px 16px rgba(0,0,0,.28);
+    text-shadow: 0 2px 0 rgba(0,0,0,.25); animation: btnPulse 1.6s ease-in-out infinite;
+  }
+  .startBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #2c7420; }
+  @keyframes btnPulse { 0%,100%{ transform: scale(1);} 50%{ transform: scale(1.05);} }
   .hint { font-size: 10px; color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 </style>
 </head>
@@ -97,30 +145,41 @@
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="nextBox"><div class="lbl">つぎ</div><canvas id="nextCv" width="46" height="46"></canvas></div>
-    <button class="tiltBtn" id="tiltL">◀<small>ゆさぶる</small></button>
-    <button class="tiltBtn" id="tiltR">▶<small>ゆさぶる</small></button>
-
-
     <div class="overlay hide" id="over">
       <h2 id="overTitle">お疲れさまでした！</h2>
       <div class="fin" id="finalTxt"></div>
       <button class="lvBtn" id="retry">もういちど</button>
     </div>
+
+    <div class="overlay" id="title">
+      <div class="burst"></div>
+      <div class="glow"></div>
+      <div id="titleFaces"></div>
+      <div class="inner">
+        <div class="logo" id="logoText"></div>
+        <button class="startBtn" id="startBtn">はじめる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="shakeRow">
+    <button class="sbtn" id="tiltL">◀ ゆさぶる</button>
+    <button class="sbtn mid" id="btnShuffle">🔀 シャッフル</button>
+    <button class="sbtn" id="tiltR">ゆさぶる ▶</button>
   </div>
 
   <div id="tools">
-    <button class="tbtn" id="btnShuffle"><b>🔀</b>シャッフル</button>
     <button class="tbtn" id="btnAuto"><b>⏩</b>オート</button>
     <button class="tbtn on" id="btnSfx"><b>🔔</b>効果音</button>
     <button class="tbtn on" id="btnBgm"><b>🎵</b>BGM</button>
-    <a class="tbtn" id="btnRank" href="ranking.html"><b>🏆</b>ランキング</a>
+    <a class="tbtn" id="btnRank" href="ranking.html"><b>🏆</b>きろく</a>
   </div>
 
   <div id="chartBox">
     <div class="head" id="chartHead">そだつ じゅんばん</div>
-    <div id="chart"></div>
+    <canvas id="chartCv"></canvas>
   </div>
-  <div class="hint">クリック / タップで投下　◀▶でカゴをゆさぶる　🔀は何度でも使える</div>
+  <div class="hint">タップした場所に落とす　◀▶ でカゴをゆさぶる　🔀 は何度でも使える</div>
 </div>
 
 <script>
@@ -408,7 +467,7 @@ function fit(){
   const stage = document.getElementById('stage');
   // 盤面以外（ヘッダ・ボタン・凡例・ヒント）の実寸を測り、残りを盤面に配る
   const h = sel => { const el = document.querySelector(sel); return el ? el.getBoundingClientRect().height : 0; };
-  const other = h('header') + h('#tools') + h('#chartBox') + h('.hint');
+  const other = h('header') + h('#shakeRow') + h('#tools') + h('#chartBox') + h('.hint');
   const availH = window.innerHeight - other - 44;
   const availW = Math.min(window.innerWidth - 16, 430);
   scale = Math.max(0.4, Math.min(availW / BASE_W, availH / BASE_H, 1.1));
@@ -429,7 +488,7 @@ let balls = [], particles = [], mergeQueue = [], popQueue = [];
 let score = 0, best = +(localStorage.getItem('muscat_best_pt') || 0);
 let curType = 0, nextType = 0, aimX = BASE_W / 2;
 let lastDrop = -9999, lastShuffle = -9999, lastTilt = -9999;
-let dangerT = 0, gameOver = false, started = true;   // レベルは1つなので最初から開始
+let dangerT = 0, gameOver = false, started = false;   // タイトル画面の「はじめる」で開始
 let autoOn = false, shuffleFx = 0, shakeT = 0, shakeAmp = 0, celebrate = 0;
 let idSeq = 1, topReached = false, popped = 0, topMade = 0, levelKey = 'hard';
 
@@ -746,6 +805,14 @@ document.getElementById('retry').addEventListener('click', () => {
   wake();
   $over.classList.add('hide');
   reset();
+  started = true;
+});
+document.getElementById('startBtn').addEventListener('click', () => {
+  wake();
+  document.getElementById('title').classList.add('hide');
+  reset();
+  started = true;
+  fit();
 });
 window.addEventListener('resize', fit);
 
@@ -946,33 +1013,117 @@ function loop(now){
 /* ==========================================================
    進化チャート
    ========================================================== */
+/* そだつ順番を輪に並べて描く */
 function buildChart(){
-  const el = document.getElementById('chart');
-  el.innerHTML = '';
+  const c = document.getElementById('chartCv');
+  const CS = 142, dpr = window.devicePixelRatio || 1;
+  c.width = CS * dpr; c.height = CS * dpr;
+  c.style.width = CS + 'px'; c.style.height = CS + 'px';
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, CS, CS);
+
+  const cx = CS / 2, cy = CS / 2, ring = 52;
+  const n = VEG.length;
+  const ang = i => -Math.PI / 2 + (i / n) * Math.PI * 2;   // 真上から時計回り
+  // 隣どうしが重ならない大きさに抑える（弦の長さ 2*ring*sin(π/n) 未満）
+  const rad = i => 6.5 + i * 1.7;
+
+  // 輪の下地
+  g.save();
+  g.setLineDash([3, 5]);
+  g.strokeStyle = 'rgba(120,100,60,.28)';
+  g.lineWidth = 1.5;
+  g.beginPath(); g.arc(cx, cy, ring, 0, 6.2832); g.stroke();
+  g.restore();
+
+  // 進む向きの矢印
+  g.save();
+  g.strokeStyle = '#7bbf52'; g.fillStyle = '#7bbf52';
+  g.lineWidth = 3; g.lineCap = 'round';
+  g.beginPath(); g.arc(cx, cy, ring - 13, -Math.PI * 0.62, -Math.PI * 0.20); g.stroke();
+  const ta = -Math.PI * 0.20, tx = cx + Math.cos(ta) * (ring - 13), ty = cy + Math.sin(ta) * (ring - 13);
+  g.translate(tx, ty); g.rotate(ta + Math.PI / 2);
+  g.beginPath(); g.moveTo(0, 5); g.lineTo(-4.5, -4); g.lineTo(4.5, -4); g.closePath(); g.fill();
+  g.restore();
+
   VEG.forEach((v, i) => {
-    const c = document.createElement('canvas');
-    const s = Math.round(24 + i * 4);
-    c.width = c.height = s;
-    c.title = `${v.name}　${v.pt}点`;
-    if (i === VEG.length - 1) c.className = 'goal';
-    const g = c.getContext('2d');
-    g.save(); g.beginPath(); g.arc(s/2, s/2, s/2, 0, 6.2832); g.clip();
-    if (imgOk(i)) g.drawImage(IMGS[i], 0, 0, s, s);
-    else { g.fillStyle = v.color; g.fillRect(0, 0, s, s); }
+    const a = ang(i), r = rad(i);
+    const x = cx + Math.cos(a) * ring, y = cy + Math.sin(a) * ring;
+    g.save();
+    g.beginPath(); g.arc(x, y + 1.5, r, 0, 6.2832);
+    g.fillStyle = 'rgba(90,70,40,.18)'; g.fill();
+    g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.clip();
+    if (imgOk(i)) g.drawImage(IMGS[i], x - r, y - r, r * 2, r * 2);
+    else { g.fillStyle = v.color; g.fillRect(x - r, y - r, r * 2, r * 2); }
     g.restore();
-    el.appendChild(c);
-    if (i < VEG.length - 1){
-      const a = document.createElement('i'); a.textContent = '▸'; el.appendChild(a);
-    }
+    g.beginPath(); g.arc(x, y, r, 0, 6.2832);
+    g.lineWidth = i === n - 1 ? 3 : 2;
+    g.strokeStyle = i === n - 1 ? '#ffcf3d' : '#fff';
+    g.stroke();
+  });
+
+  // 中央は絵文字だけ（名前を置くと輪の写真とぶつかる）
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '20px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  g.fillText('🏆', cx, cy);
+  c.title = VEG.map(v => `${v.name} ${v.pt}点`).join(' → ');
+}
+
+/* タイトル画面（顔をふわふわ浮かべる） */
+function buildTitle(){
+  const box = document.getElementById('titleFaces');
+  box.innerHTML = '';
+  const spots = [
+    { i: TOP, l: 50, t: 74, s: 66 },
+    { i: 1,   l: 13, t: 20, s: 46 },
+    { i: 5,   l: 84, t: 24, s: 52 },
+    { i: 3,   l: 10, t: 55, s: 40 },
+    { i: 6,   l: 87, t: 58, s: 44 },
+  ];
+  spots.forEach((p, k) => {
+    const c = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = p.s * dpr; c.height = p.s * dpr;
+    c.style.width = p.s + 'px'; c.style.height = p.s + 'px';
+    c.style.left = `calc(${p.l}% - ${p.s / 2}px)`;
+    c.style.top  = `calc(${p.t}% - ${p.s / 2}px)`;
+    c.style.animationDelay = (k * 0.4) + 's';
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.save(); g.beginPath(); g.arc(p.s/2, p.s/2, p.s/2, 0, 6.2832); g.clip();
+    if (imgOk(p.i)) g.drawImage(IMGS[p.i], 0, 0, p.s, p.s);
+    else { g.fillStyle = VEG[p.i].color; g.fillRect(0, 0, p.s, p.s); }
+    g.restore();
+    box.appendChild(c);
+  });
+  [[22,44],[70,12],[90,44],[34,84],[64,88]].forEach(([l, t], k) => {
+    const s = document.createElement('div');
+    s.className = 'spark'; s.textContent = '✨';
+    s.style.left = l + '%'; s.style.top = t + '%';
+    s.style.animationDelay = (k * 0.35) + 's';
+    box.appendChild(s);
   });
 }
 
 function applyTheme(){
   document.title = THEME.doc;
   document.getElementById('hdTitle').firstChild.nodeValue = THEME.head;
-  document.getElementById('hdSub').textContent = THEME.sub;
+  const $sub = document.getElementById('hdSub');
+  $sub.textContent = THEME.sub || '';
+  $sub.style.display = THEME.sub ? '' : 'none';
   document.getElementById('overTitle').textContent = THEME.over;
-  document.getElementById('chartHead').textContent = `そだつ じゅんばん　→　🏆 ${THEME.top}`;
+  document.getElementById('chartHead').textContent = 'そだつ じゅんばん';
+  const parts = THEME.logo ||
+    (THEME.doc.endsWith('ゲーム') ? [THEME.doc.slice(0, -3), 'ゲーム'] : [THEME.doc, '']);
+  const $logo = document.getElementById('logoText');
+  $logo.textContent = parts[0];
+  $logo.style.fontSize = parts[0].length > 7 ? 'clamp(17px, 6.2vw, 30px)' : '';
+  if (parts[1]){
+    const sp = document.createElement('span');
+    sp.textContent = parts[1];
+    $logo.appendChild(sp);
+  }
   // ランキングページが見出しに使う
   try {
     localStorage.setItem('muscat_doc_title', THEME.doc);
@@ -986,8 +1137,9 @@ applyTheme();
 applyLevel('hard');
 updateHud();
 buildChart();
+buildTitle();
 fit();
-setTimeout(() => { buildChart(); fit(); }, 600);   // 画像の読み込み後にもう一度
+setTimeout(() => { buildChart(); buildTitle(); fit(); }, 600);   // 画像の読み込み後にもう一度
 requestAnimationFrame(loop);
 })();
 </script>
